@@ -21,8 +21,10 @@ for(code in stocks_code){
             #ajusted for split and dividends 
             #get(symbol) <- adjustOHLC(get(symbol),use.Adjusted=TRUE)
             dc <- lag(DonchianChannel(cbind(Hi(adjustOHLC(get(symbol),use.Adjusted=TRUE)),
-                                      Lo(adjustOHLC(get(symbol),use.Adjusted=TRUE)))))
-            if(last(Cl(last(get(symbol)))) > last(dc)$high)
+                                      Lo(adjustOHLC(get(symbol),use.Adjusted=TRUE)))),
+                                      n=20)
+            if(last(Cl(last(adjustOHLC(get(symbol),use.Adjusted=TRUE)))) > last(dc)$high)
+            #if(last(Cl(last(adjustOHLC(get(symbol),use.Adjusted=TRUE)))) < last(dc)$low)
             {break_out[which(stocks_code == code)] <- 1
             } else {removeSymbols(symbol) #drop uninteresting data
             }

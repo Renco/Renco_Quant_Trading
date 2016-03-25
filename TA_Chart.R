@@ -1,6 +1,6 @@
 ##Technical Analysis of Renco 
 
-code = 603558
+code = 000971
 Is_Indice = 0
 location = c("SS","SZ")
 loc_code = 1 
@@ -10,7 +10,9 @@ start_date = "2015-09-01"
 
 if(typeof(code) != "character"){ 
   #Indices and US stocks are characters
-  symbol = paste(sprintf("%06d", code),location[loc_code],sep=".")
+  symbol = paste(sprintf("%06d", code),
+                 ifelse(code <= 1000, "SZ","SS"),
+                 sep=".")
 } else if(Is_Indice == 1){
   symbol = paste("^",code,sep="") 
 } else {

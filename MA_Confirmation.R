@@ -26,10 +26,10 @@ for(code in potential){
     {double_break_out[which(potential == code)] <- 1
      order_size[which(potential == code)] <- 500/last(ATR(HLC(get(symbol)))$atr)
      range_size[which(potential == code)] <- last(ATR(HLC(get(symbol)))$atr)
-     last_price[which(potential == code)] <- last(Cl(get(symbol)))
-     stop_loss[which(potential == code)] <- last(Cl(get(symbol))) - range_size[which(potential == code)]
-     scale_up[which(potential == code)] <- last(Cl(get(symbol))) + 0.5 * range_size[which(potential == code)]
-     scale_up2[which(potential == code)] <- last(Cl(get(symbol))) + range_size[which(potential == code)]
+     last_price[which(potential == code)] <- last(Cl(adjustOHLC(get(symbol),use.Adjusted=TRUE)))
+     stop_loss[which(potential == code)] <- last(Cl(adjustOHLC(get(symbol),use.Adjusted=TRUE))) - range_size[which(potential == code)]
+     scale_up[which(potential == code)] <- last(Cl(adjustOHLC(get(symbol),use.Adjusted=TRUE))) + 0.5 * range_size[which(potential == code)]
+     scale_up2[which(potential == code)] <- last(Cl(adjustOHLC(get(symbol),use.Adjusted=TRUE))) + range_size[which(potential == code)]
      }
   },  
   warning=function(msg) {
