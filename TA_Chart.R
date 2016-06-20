@@ -1,10 +1,10 @@
 ##Technical Analysis of Renco 
 
-code = 000971
-Is_Indice = 0
+code = "SSEC"
+Is_Indice = 1
 location = c("SS","SZ")
 loc_code = 1 
-start_date = "2015-09-01"
+start_date = "2013-09-01"
 
 
 
@@ -30,13 +30,13 @@ if(Is_Indice !=1){
   chartSeries(get(code),theme="white",name=symbol)
 }
 ###TA to use
-addADX(n=14,maType="EMA",wilder=TRUE)
+#addADX(n=14,maType="EMA",wilder=TRUE)
 addMACD()
 addBBands()
 #addATR()
-addSAR()
+#addSAR()
 ##Donchian Chanles
-Has_Donchian = 1
+Has_Donchian = 0
 if(Has_Donchian == 1){
   dc <- lag(DonchianChannel(cbind(Hi(get(symbol)), Lo(get(symbol)))))
   addTA(dc$high, on=1, col='purple')
