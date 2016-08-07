@@ -7,8 +7,8 @@ stock_list <- load("All_list.RData")
 stocks_code <- as.vector(as.matrix(get(stock_list))) #for looping to saving time
 break_out <- rep(0,length.out=length(stocks_code)) #for vector
 # break_out <- rep(0,length.out=dim(stocks_code)[1]) #for data.frame
-start_date <- "2016-01-20"
-end_date <- "2016-06-14"
+start_date <- "2016-03-20"
+end_date <- "2016-08-02"
 
 for(code in stocks_code){
   #if(code %% 1000 ==0) {print (code)} #monitor progress
@@ -115,3 +115,4 @@ high_prob <-high_prob[-2]
 # 
 
 ####################################################################
+as.vector(high_prob[,1])

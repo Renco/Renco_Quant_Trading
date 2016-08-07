@@ -6,8 +6,8 @@ setwd("/Users/renco/GitHub/Renco_Quant_Trading")
 stock_list <- load("All_list.RData")
 stocks_code <- as.vector(as.matrix(get(stock_list))) #for looping to saving time
 TCbreak_out <- rep(0,length.out=length(stocks_code)) #for vector
-start_date <- "2016-01-20"
-end_date <- "2016-06-17"
+start_date <- "2016-03-20"
+end_date <- "2016-07-13"
 
 for(code in stocks_code){
   #if(code %% 1000 ==0) {print (code)} #monitor progress

@@ -1,10 +1,10 @@
 ##Technical Analysis of Renco 
 
-code = "SSEC"
-Is_Indice = 1
+code = “002673”
+Is_Indice = 0
 location = c("SS","SZ")
 loc_code = 1 
-start_date = "2013-09-01"
+start_date = "2015-09-01"
 
 
 

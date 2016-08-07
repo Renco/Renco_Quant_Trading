@@ -1,10 +1,8 @@
 ###Get the dynamic stop loss line for current holding
-holding <- c("600506","600333",
-             "600821","000691",
-             "000055","000045")
+holding <- c("000766","600419","000839")
 holding <- paste(holding, ifelse(as.integer(holding) < 60000, "SZ","SS"),sep=".")
 
-getSymbols(holding,from="2016-01-01",to="2016-04-19") #fetch data
+getSymbols(holding,from="2016-03-01",to="2016-07-18") #fetch data
 cut_loss <- rep(0,length.out = length(holding))
 scale.up <- rep(0,length.out = length(holding))
 
