@@ -1,3 +1,4 @@
+yesterday <- today 
 ###Turtle Trading Detector
 require(quantmod)
 require(xts)
@@ -8,7 +9,7 @@ stocks_code <- as.vector(as.matrix(get(stock_list))) #for looping to saving time
 break_out <- rep(0,length.out=length(stocks_code)) #for vector
 # break_out <- rep(0,length.out=dim(stocks_code)[1]) #for data.frame
 start_date <- "2016-03-20"
-end_date <- "2016-11-24"
+end_date <- "2016-12-1"
 
 for(code in stocks_code){
   #if(code %% 1000 ==0) {print (code)} #monitor progress
@@ -115,4 +116,4 @@ high_prob <-high_prob[-2]
 # 
 
 ####################################################################
-as.vector(high_prob[,1])
+today <- as.vector(high_prob[,1])

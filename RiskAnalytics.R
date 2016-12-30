@@ -1,14 +1,15 @@
 #function for risk management
 holding.tickers <- c("000002.SZ",
-                     "603299.SS",
                      "600628.SS",
                      "000623.SZ",
                      "600519.SS",
                      "601336.SS",
-                     "600383.SS"
+                     "600383.SS",
+                     "000911.SZ"
                      )
-position <- c(400,400,300,200,100,200,400)
+position <- c(400,300,300,100,200,400,0)
 start.date <- "2016-07-05"
+past.high <- c(28.25,16.18,36.99,318,48.56,14.6,24.35)
 
 renco.risk.management <- function(holding.tickers,position,start.date){
 
@@ -138,6 +139,14 @@ temp.data <- data.frame(beta.date,temp.data,
 names(temp.data) <- c("date","return","ticker")
 beta.df <- rbind(beta.df,temp.data)
 
+print("Daily Vols are")
+stock.vol <- apply(BetaData,2,sd) * 100
+print(stock.vol)
+#momentum open
+momentum.open <- past.high * (1  - 1/100 * 3 * stock.vol)
+print("momentum open are")
+print(momentum.open)
+
 #a graph for return series
 p1 <- ggplot(beta.df,aes(x=date,y=return,colour = ticker)) + geom_line() +
   facet_wrap(~ ticker,ncol=2) + geom_smooth()
@@ -162,16 +171,28 @@ print(beta.vec)
 total.beta <- sum(beta.vec * risk.summary$PortfolioShare /100 )
 print(paste("The total Beta exposure is: ",total.beta))
 
+CAPM.df <- data.frame(as.numeric(tail(BetaData)[5,]),beta.vec)
+names(CAPM.df) <- c("ex_return","beta")
+capm.plot <- ggplot(CAPM.df, aes(x =beta,y=ex_return,
+                                 label = tickerNum)) + 
+  geom_smooth(formula = y ~ x, method =lm) + geom_point() + 
+  geom_text(vjust = -0.3) + labs(title = "Security Market Line")
+print(capm.plot)
+
+
+
 return(beta.fit)
 }
 
+# 
+ beta.fitt <- renco.risk.management(holding.tickers,position,start.date) #VAR risk
+# 
+# for(i in 1:length(beta.fit)){
+#   print(holding.tickers[i])
+#   print(summary(beta.fit[[i]]))
+#   acf(beta.fitt[[i]]$residuals)
+# }
 
-beta.fitt <- renco.risk.management(holding.tickers,position,start.date) #VAR risk
-
-for(i in 1:length(beta.fit)){
-  print(holding.tickers[i])
-  print(summary(beta.fit[[i]]))
-}
 
 
 
