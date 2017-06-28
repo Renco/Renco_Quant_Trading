@@ -8,8 +8,8 @@ stock_list <- load("All_list.RData")
 stocks_code <- as.vector(as.matrix(get(stock_list))) #for looping to saving time
 break_out <- rep(0,length.out=length(stocks_code)) #for vector
 # break_out <- rep(0,length.out=dim(stocks_code)[1]) #for data.frame
-start_date <- "2016-03-20"
-end_date <- "2016-12-1"
+start_date <- "2016-09-20"
+end_date <- "2017-01-25"
 
 for(code in stocks_code){
   #if(code %% 1000 ==0) {print (code)} #monitor progress
