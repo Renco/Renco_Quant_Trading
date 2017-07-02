@@ -109,12 +109,17 @@ while (num_mom_stock < 5) {
     }
     holding[i,"vol"] <- sd(ts)
     holding[i,"cum.ret"] <- mom.dt[i,cum.ret]
-    #removeSymbols(symbol)
   }
   if(!is.null(del_row)){
     holding <- holding[-del_row, ]
   }
   num_mom_stock <- dim(holding)[1]
+}
+
+last.price = c()
+for (symbol in unlist(holding['symbol']) ) {
+  last.price = c(last.price, tail(Ad(get(symbol)), 1))
+  #removeSymbols(symbol)                
 }
 
 holding["weight"] <- holding["weight"] / sum(holding["weight"]) * 100 
