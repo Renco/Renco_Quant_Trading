@@ -3,6 +3,7 @@ require(quantmod)
 require(xts)
 require(data.table)
 require(lubridate)
+require(PerformanceAnalytics)
 
 setwd("/Users/renco/GitHub/Renco_Quant_Trading")
 start_date <- today() - 30
@@ -116,14 +117,13 @@ while (num_mom_stock < 5) {
   num_mom_stock <- dim(holding)[1]
 }
 
-last.price = c()
+last.price = c() #used to calculate "shou"
 for (symbol in unlist(holding['symbol']) ) {
   last.price = c(last.price, tail(Ad(get(symbol)), 1))
   #removeSymbols(symbol)                
 }
 
 holding["weight"] <- holding["weight"] / sum(holding["weight"]) * 100 
-#print(holding)
 
 p.vol <- sqrt(sum(holding["vol"]^2 * holding["weight"] / 100))
 if (p.vol >= 0.05) {
@@ -132,6 +132,60 @@ if (p.vol >= 0.05) {
   holding["weight"] <- holding["weight"] / ratio  
 }
 
-p.value = 107538.58 - 47530.00
+
+#mao tai 
+mt.symbol <- "600519.SS"
+mt.holding <- 100
+getSymbols(mt.symbol, from = today() - 126,
+           to = today())
+mt.price <- tail(Ad(get(mt.symbol)),1)
+mt.value <- mt.price * mt.holding
+
+#risk managment
+#trim addtional holding to make sure the daily VaR is less than
+# 1% of total asset value 
+
+risk.VaR <- Inf
+p.value = 107538.58 - 47530.00 #value for momentum investments
+tolerance <- 0.01 * (mt.value + p.value)
+risk.downsize_ratio <- 1
+while(abs(risk.VaR) > tolerance){
+  
+  p.value <- p.value * risk.downsize_ratio 
+  risk.xts <- dailyReturn(Ad(get(mt.symbol)))
+  for (symbol in unlist(holding['symbol'])){
+    risk.xts <- merge(risk.xts, dailyReturn(Ad(get(symbol))))  
+  }
+  names(risk.xts) <- c(mt.symbol,unlist(holding['symbol']))
+  mt.weight <- as.numeric(coredata(mt.value /  (mt.value + p.value)))
+  risk.weight <- c(mt.weight, unlist(holding["weight"]) * (1 - mt.weight) * 1/100)
+  stopifnot(abs(sum(risk.weight) - 1) < 1e-6)
+  
+  risk.ret <- xts(coredata(risk.xts) %*% as.matrix(risk.weight, col = 1),
+                  order.by = index(get(mt.symbol)))
+  risk.VaR <- VaR(risk.ret, p = 0.95, method = "modified") * (p.value + mt.value)
+  risk.downsize_ratio <- abs( as.numeric(tolerance / risk.VaR))
+  if (risk.downsize_ratio < 1){
+    print(risk.downsize_ratio)
+    print("Downsize")
+    cat("\n")
+  }
+  if (abs(risk.downsize_ratio - 1) < 0.01){
+    break
+  }
+}
+
+chart.CumReturns(risk.ret)
+
 holding["value"] = p.value * holding["weight"] / 100
-print(holding)
+holding['shou'] = round(holding['value'] / (100 * last.price), 
+                        digits = 0)
+print(holding) 
+
+
+#clean up
+removeSymbols(mt.symbol)
+lapply(unlist(holding['symbol']), removeSymbols)
+
+
+
