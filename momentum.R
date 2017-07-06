@@ -90,7 +90,7 @@ exclude <- c('002591.SZ','002510.SZ','603861.SZ',
              '603861.SZ')
 
 num_mom_stock <- 0
-while (num_mom_stock < 5) {
+while (num_mom_stock < N) {
   
   port <- port[!symbol %in% exclude]
   holding <- data.frame(matrix(rep(NA, 4 * N),ncol = 4))
@@ -102,13 +102,14 @@ while (num_mom_stock < 5) {
     symbol <- holding[i,"symbol"]
     getSymbols(symbol, from = today() - 126, to = today())
     ts <- dailyReturn(Ad(get(symbol)))
+    ts <- ts[!is.na(ts)] #remove NA values
     holding[i,"weight"] <- mean(ts) / var(ts)
     if (holding[i,'weight'] < 0 ) {
       exclude <- c(exclude, symbol)
       print(paste(symbol, "has negative return -- Kill it"))
       del_row <- c(del_row, i) 
     }
-    holding[i,"vol"] <- sd(ts)
+    holding[i,"vol"] <- sd(ts, na.rm = TRUE)
     holding[i,"cum.ret"] <- mom.dt[i,cum.ret]
   }
   if(!is.null(del_row)){
