@@ -4,6 +4,7 @@ require(xts)
 require(data.table)
 require(lubridate)
 require(PerformanceAnalytics)
+require(magrittr)
 
 setwd("/Users/renco/GitHub/Renco_Quant_Trading")
 start_date <- today() - 30
@@ -84,57 +85,9 @@ port <- head(mom.dt, 20)
 
 
 # optimal portfolio  ------------------------------------------------------
-N = 5
-exclude <- c('002591.SZ','002510.SZ','603861.SZ',
-             '000002.SZ','000921.SZ','002761.SZ',
-             '603861.SZ')
-
-num_mom_stock <- 0
-while (num_mom_stock < N) {
-  
-  port <- port[!symbol %in% exclude]
-  holding <- data.frame(matrix(rep(NA, 4 * N),ncol = 4))
-  names(holding) <- c("symbol", "weight","vol","cum.ret")
-  holding["symbol"] <- port[1:N,symbol]
-  
-  del_row = c()
-  for (i in 1:N) {
-    symbol <- holding[i,"symbol"]
-    getSymbols(symbol, from = today() - 126, to = today())
-    ts <- dailyReturn(Ad(get(symbol)))
-    ts <- ts[!is.na(ts)] #remove NA values
-    holding[i,"weight"] <- mean(ts) / var(ts)
-    if (holding[i,'weight'] < 0 ) {
-      exclude <- c(exclude, symbol)
-      print(paste(symbol, "has negative return -- Kill it"))
-      del_row <- c(del_row, i) 
-    }
-    holding[i,"vol"] <- sd(ts, na.rm = TRUE)
-    holding[i,"cum.ret"] <- mom.dt[i,cum.ret]
-  }
-  if(!is.null(del_row)){
-    holding <- holding[-del_row, ]
-  }
-  num_mom_stock <- dim(holding)[1]
-}
-
-last.price = c() #used to calculate "shou"
-for (symbol in unlist(holding['symbol']) ) {
-  last.price = c(last.price, tail(Ad(get(symbol)), 1))
-  #removeSymbols(symbol)                
-}
-
-holding["weight"] <- holding["weight"] / sum(holding["weight"]) * 100 
-
-p.vol <- sqrt(sum(holding["vol"]^2 * holding["weight"] / 100))
-if (p.vol >= 0.05) {
-  print("portfolio's volatility is too large.")
-  ratio = p.vol / 0.05
-  holding["weight"] <- holding["weight"] / ratio  
-}
-
 
 #mao tai 
+#this is the long-term holding invariant to daily rebalancing
 mt.symbol <- "600519.SS"
 mt.holding <- 100
 getSymbols(mt.symbol, from = today() - 126,
@@ -142,51 +95,121 @@ getSymbols(mt.symbol, from = today() - 126,
 mt.price <- tail(Ad(get(mt.symbol)),1)
 mt.value <- mt.price * mt.holding
 
-#risk managment
-#trim addtional holding to make sure the daily VaR is less than
-# 1% of total asset value 
 
-risk.VaR <- Inf
-p.value = 107538.58 - 47530.00 #value for momentum investments
-tolerance <- 0.01 * (mt.value + p.value)
-risk.downsize_ratio <- 1
-while(abs(risk.VaR) > tolerance){
-  
-  p.value <- p.value * risk.downsize_ratio 
-  risk.xts <- dailyReturn(Ad(get(mt.symbol)))
-  for (symbol in unlist(holding['symbol'])){
-    risk.xts <- merge(risk.xts, dailyReturn(Ad(get(symbol))))  
-  }
-  names(risk.xts) <- c(mt.symbol,unlist(holding['symbol']))
-  mt.weight <- as.numeric(coredata(mt.value /  (mt.value + p.value)))
-  risk.weight <- c(mt.weight, unlist(holding["weight"]) * (1 - mt.weight) * 1/100)
-  stopifnot(abs(sum(risk.weight) - 1) < 1e-6)
-  
-  risk.ret <- xts(coredata(risk.xts) %*% as.matrix(risk.weight, col = 1),
-                  order.by = index(get(mt.symbol)))
-  risk.VaR <- VaR(risk.ret, p = 0.95, method = "modified") * (p.value + mt.value)
-  risk.downsize_ratio <- abs( as.numeric(tolerance / risk.VaR))
-  if (risk.downsize_ratio < 1){
-    print(risk.downsize_ratio)
-    print("Downsize")
-    cat("\n")
-  }
-  if (abs(risk.downsize_ratio - 1) < 0.01){
-    break
-  }
-}
+#stocks that failed discretionary tests
+exclude <- c('002161.SZ','000916.SZ','600516.SS')
 
+
+N = 5
+num_holding_stock <- 0
+while (num_holding_stock < N & dim(port)[1] >= N) {
+  
+  num_mom_stock <- 0
+  while (num_mom_stock < N) {
+    
+    #trim stock that has negative mean return 
+    
+    port <- port[!symbol %in% exclude]
+    holding <- data.frame(matrix(rep(NA, 4 * N),ncol = 4))
+    names(holding) <- c("symbol", "weight","vol","cum.ret")
+    holding["symbol"] <- port[1:N,symbol]
+    
+    del_row = c()
+    for (i in 1:N) {
+      symbol <- holding[i,"symbol"]
+      getSymbols(symbol, from = today() - 126, to = today())
+      ts <- dailyReturn(Ad(get(symbol)))
+      ts <- ts[!is.na(ts)] #remove NA values
+      holding[i,"weight"] <- mean(ts) / var(ts)
+      if (holding[i,'weight'] < 0 ) {
+        exclude <- c(exclude, symbol)
+        print(paste(symbol, "has negative return -- Kill it"))
+        del_row <- c(del_row, i) 
+      }
+      holding[i,"vol"] <- sd(ts, na.rm = TRUE)
+      holding[i,"cum.ret"] <- mom.dt[i,cum.ret]
+    }
+    if (!is.null(del_row)) {
+      holding <- holding[-del_row, ]
+    }
+    num_mom_stock <- dim(holding)[1]
+  }#while num_mom_stock
+  
+  
+  holding["weight"] <- holding["weight"] / sum(holding["weight"]) * 100 
+  
+  
+  #risk managment
+  #trim addtional holding to make sure the daily VaR is less than
+  # 1% of total asset value 
+  
+  risk.VaR <- Inf
+  p.value = 107538.58 - 47530.00 #value for momentum investments
+  tolerance <- 0.01 * (mt.value + p.value)
+  risk.downsize_ratio <- 1
+  while(abs(risk.VaR) > tolerance){
+    
+    #downsize portfolio until the daily VaR is less than 
+    #1% ot total asset value
+    p.value <- p.value * risk.downsize_ratio 
+    risk.xts <- dailyReturn(Ad(get(mt.symbol)))
+    for (symbol in unlist(holding['symbol'])){
+      risk.xts <- merge(risk.xts, dailyReturn(Ad(get(symbol))))  
+    }
+    names(risk.xts) <- c(mt.symbol,unlist(holding['symbol']))
+    mt.weight <- as.numeric(coredata(mt.value /  (mt.value + p.value)))
+    risk.weight <- c(mt.weight, unlist(holding["weight"]) * (1 - mt.weight) * 1/100)
+    stopifnot(abs(sum(risk.weight) - 1) < 1e-6)
+    
+    risk.ret <- xts(coredata(risk.xts) %*% as.matrix(risk.weight, col = 1),
+                    order.by = index(get(mt.symbol)))
+    risk.VaR <- VaR(risk.ret, p = 0.95, method = "modified") * (p.value + mt.value)
+    risk.downsize_ratio <- abs( as.numeric(tolerance / risk.VaR))
+    if (risk.downsize_ratio < 1){
+      print(risk.downsize_ratio)
+      print("Downsize")
+      cat("\n")
+    }
+    if (abs(risk.downsize_ratio - 1) < 0.01) {
+      break
+    }
+  }#while risk.VaR
+  
+  
+  # #sizing the daily volatility
+  # p.vol <- sqrt(sum(holding["vol"]^2 * holding["weight"] / 100))
+  # if (p.vol >= 0.05) {
+  #   print("portfolio's volatility is too large.")
+  #   ratio = p.vol / 0.05
+  #   holding["weight"] <- holding["weight"] / ratio  
+  # }
+  
+  
+  
+  last.price = c() #used to calculate "shou"
+  for (symbol in unlist(holding['symbol']) ) {
+    last.price = c(last.price, tail(Ad(get(symbol)), 1))
+  }
+  
+  
+  holding["value"] = p.value * holding["weight"] / 100
+  holding['shou'] = round(holding['value'] / (100 * last.price), 
+                          digits = 0)
+  
+  exclude <- c(exclude, unlist(unlist(holding[holding["shou"] == 0,"symbol"])))  
+  holding <- holding[holding["shou"] != 0,] #triming asset that has zero shou
+  num_holding_stock <- dim(holding)[1]
+  
+}#while num_holding_stock
+
+print(holding)
 chart.CumReturns(risk.ret)
 
-holding["value"] = p.value * holding["weight"] / 100
-holding['shou'] = round(holding['value'] / (100 * last.price), 
-                        digits = 0)
-print(holding) 
 
 
 #clean up
 removeSymbols(mt.symbol)
-lapply(unlist(holding['symbol']), removeSymbols)
+sapply(unlist(holding['symbol']), removeSymbols) %>% invisible()
 
 
 
