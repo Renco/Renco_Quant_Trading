@@ -60,6 +60,10 @@ for (code in stocks_code) {
       removeSymbols(symbol) #house keeping 
       next
     }
+    if ( tail(index(get(symbol)),1) != end_date) {
+    removeSymbols(symbol) #house keeping 
+    next
+  }
     #last 7 days skippping the most recent day 
     temp.cum.ret <- prod(1 + head(tail(ret.ts$d.ret,8),7)) 
     mom.df[code_count,"symbol"] <- symbol
@@ -144,7 +148,7 @@ while (num_holding_stock < N & dim(port)[1] >= N) {
   # 1% of total asset value 
   
   risk.VaR <- Inf
-  p.value = 107538.58 - 47530.00 #value for momentum investments
+  p.value = 111108.23 - 45526.00 #value for momentum investments
   tolerance <- 0.01 * (mt.value + p.value)
   risk.downsize_ratio <- 1
   while(abs(risk.VaR) > tolerance){
@@ -204,8 +208,8 @@ while (num_holding_stock < N & dim(port)[1] >= N) {
 
 print(holding)
 chart.CumReturns(risk.ret)
-
-
+print(paste("total momentum value: ", sum(holding['value'])))
+print(paste("Daily VaR value: ", risk.VaR))
 
 #clean up
 removeSymbols(mt.symbol)
