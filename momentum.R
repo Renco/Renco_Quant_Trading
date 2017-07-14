@@ -101,17 +101,24 @@ mt.value <- mt.price * mt.holding
 
 
 #stocks that failed discretionary tests
-exclude <- c('002161.SZ','000916.SZ','600516.SS')
+exclude <- c('002161.SZ','000916.SZ','600516.SS',
+             '000831.SZ','002110.SZ','600581.SS',
+             '600808.SS','600549.SS','000488.SZ')
 
+
+init.p.value = 111108.23 - 45526.00 #value for momentum investments
+tolerance <- 0.01 * (mt.value + init.p.value) #acceptable maximum daily loss 
 
 N = 5
 num_holding_stock <- 0
-while (num_holding_stock < N & dim(port)[1] >= N) {
+slack = TRUE #addtional risk capital to use 
+while (num_holding_stock < N & dim(port)[1] >= N | slack == TRUE) {
   
   num_mom_stock <- 0
   while (num_mom_stock < N) {
     
-    #trim stock that has negative mean return 
+    #get data for holdings 
+    #and trim stock that has negative mean return 
     
     port <- port[!symbol %in% exclude]
     holding <- data.frame(matrix(rep(NA, 4 * N),ncol = 4))
@@ -140,6 +147,7 @@ while (num_holding_stock < N & dim(port)[1] >= N) {
   }#while num_mom_stock
   
   
+  #normalize total weight to 100% 
   holding["weight"] <- holding["weight"] / sum(holding["weight"]) * 100 
   
   
@@ -147,17 +155,16 @@ while (num_holding_stock < N & dim(port)[1] >= N) {
   #trim addtional holding to make sure the daily VaR is less than
   # 1% of total asset value 
   
+  p.value = init.p.value
   risk.VaR <- Inf
-  p.value = 111108.23 - 45526.00 #value for momentum investments
-  tolerance <- 0.01 * (mt.value + p.value)
   risk.downsize_ratio <- 1
-  while(abs(risk.VaR) > tolerance){
+  while (abs(risk.VaR) > tolerance) {
     
     #downsize portfolio until the daily VaR is less than 
     #1% ot total asset value
     p.value <- p.value * risk.downsize_ratio 
     risk.xts <- dailyReturn(Ad(get(mt.symbol)))
-    for (symbol in unlist(holding['symbol'])){
+    for (symbol in unlist(holding['symbol'])) {
       risk.xts <- merge(risk.xts, dailyReturn(Ad(get(symbol))))  
     }
     names(risk.xts) <- c(mt.symbol,unlist(holding['symbol']))
@@ -169,7 +176,7 @@ while (num_holding_stock < N & dim(port)[1] >= N) {
                     order.by = index(get(mt.symbol)))
     risk.VaR <- VaR(risk.ret, p = 0.95, method = "modified") * (p.value + mt.value)
     risk.downsize_ratio <- abs( as.numeric(tolerance / risk.VaR))
-    if (risk.downsize_ratio < 1){
+    if (risk.downsize_ratio < 1) {
       print(risk.downsize_ratio)
       print("Downsize")
       cat("\n")
@@ -200,8 +207,20 @@ while (num_holding_stock < N & dim(port)[1] >= N) {
   holding['shou'] = round(holding['value'] / (100 * last.price), 
                           digits = 0)
   
+  
   exclude <- c(exclude, unlist(unlist(holding[holding["shou"] == 0,"symbol"])))  
   holding <- holding[holding["shou"] != 0,] #triming asset that has zero shou
+  
+  holding["value"] = last.price * holding["shou"] * 100
+  if (sum(holding["value"]) / p.value < 0.95) {
+    slack = TRUE
+    tolerance = tolerance * (p.value / sum(holding["value"]))
+    print(sum(holding["value"]) / p.value )
+    print(paste("raise tolerance: ", tolerance))
+  }else{
+    slack = FALSE
+  }
+  
   num_holding_stock <- dim(holding)[1]
   
 }#while num_holding_stock
