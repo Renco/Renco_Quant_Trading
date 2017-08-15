@@ -7,8 +7,8 @@ require(PerformanceAnalytics)
 require(magrittr)
 
 setwd("/Users/renco/GitHub/Renco_Quant_Trading")
-start_date <- today() - 30
-end_date <- today()
+start_date <- today() - 30 - 1
+end_date <- today() - 1
 
 
 # Should we trade? --------------------------------------------------------
@@ -60,10 +60,10 @@ for (code in stocks_code) {
       removeSymbols(symbol) #house keeping 
       next
     }
-    if ( tail(index(get(symbol)),1) != end_date) {
-    removeSymbols(symbol) #house keeping 
-    next
-  }
+    # if ( tail(index(get(symbol)),1) != end_date) {
+    # removeSymbols(symbol) #house keeping 
+    # next
+    #}
     #last 7 days skippping the most recent day 
     temp.cum.ret <- prod(1 + head(tail(ret.ts$d.ret,8),7)) 
     mom.df[code_count,"symbol"] <- symbol
@@ -100,14 +100,22 @@ mt.price <- tail(Ad(get(mt.symbol)),1)
 mt.value <- mt.price * mt.holding
 
 
+#ge li
+#long-term holding
+gl.symbol <- "000651.SZ"
+gl.holding <- 400
+getSymbols(gl.symbol, from = today() - 126,
+           to = today())
+gl.price <- tail(Ad(get(gl.symbol)),1)
+gl.value <- gl.price * gl.holding
+
+
 #stocks that failed discretionary tests
-exclude <- c('002161.SZ','000916.SZ','600516.SS',
-             '000831.SZ','002110.SZ','600581.SS',
-             '600808.SS','600549.SS','000488.SZ')
+exclude <- c("600117.SS","002225.SZ")
 
 
-init.p.value = 111108.23 - 45526.00 #value for momentum investments
-tolerance <- 0.01 * (mt.value + init.p.value) #acceptable maximum daily loss 
+init.p.value = 145226.18 - as.numeric(gl.value) - as.numeric(mt.value)#value for momentum investments
+tolerance <- 0.01 * (mt.value + gl.value + init.p.value) #acceptable maximum daily loss 
 
 N = 5
 num_holding_stock <- 0
@@ -164,17 +172,20 @@ while (num_holding_stock < N & dim(port)[1] >= N | slack == TRUE) {
     #1% ot total asset value
     p.value <- p.value * risk.downsize_ratio 
     risk.xts <- dailyReturn(Ad(get(mt.symbol)))
+    risk.xts <- merge(risk.xts, dailyReturn(Ad(get(gl.symbol))))  
     for (symbol in unlist(holding['symbol'])) {
       risk.xts <- merge(risk.xts, dailyReturn(Ad(get(symbol))))  
     }
-    names(risk.xts) <- c(mt.symbol,unlist(holding['symbol']))
-    mt.weight <- as.numeric(coredata(mt.value /  (mt.value + p.value)))
-    risk.weight <- c(mt.weight, unlist(holding["weight"]) * (1 - mt.weight) * 1/100)
+    names(risk.xts) <- c(mt.symbol, gl.symbol, unlist(holding['symbol']))
+    mt.weight <- as.numeric(coredata(mt.value /  (mt.value + gl.value + p.value)))
+    gl.weight <- as.numeric(coredata(gl.value /  (mt.value + gl.value + p.value)))
+    value.weight <- mt.weight + gl.weight
+    risk.weight <- c(mt.weight, gl.weight, unlist(holding["weight"]) * (1 - value.weight) * 1/100)
     stopifnot(abs(sum(risk.weight) - 1) < 1e-6)
     
     risk.ret <- xts(coredata(risk.xts) %*% as.matrix(risk.weight, col = 1),
                     order.by = index(get(mt.symbol)))
-    risk.VaR <- VaR(risk.ret, p = 0.95, method = "modified") * (p.value + mt.value)
+    risk.VaR <- VaR(risk.ret, p = 0.95, method = "modified") * (p.value + mt.value + gl.value)
     risk.downsize_ratio <- abs( as.numeric(tolerance / risk.VaR))
     if (risk.downsize_ratio < 1) {
       print(risk.downsize_ratio)
@@ -232,6 +243,7 @@ print(paste("Daily VaR value: ", risk.VaR))
 
 #clean up
 removeSymbols(mt.symbol)
+removeSymbols(gl.symbol)
 sapply(unlist(holding['symbol']), removeSymbols) %>% invisible()
 
 
