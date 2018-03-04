@@ -7,8 +7,8 @@ require(PerformanceAnalytics)
 require(magrittr)
 
 setwd("/Users/renco/GitHub/Renco_Quant_Trading")
-start_date <- today() - 30 - 1
-end_date <- today() - 1
+start_date <- today() - 30 
+end_date <- today() 
 
 
 # Should we trade? --------------------------------------------------------
@@ -111,11 +111,12 @@ gl.value <- gl.price * gl.holding
 
 
 #stocks that failed discretionary tests
-exclude <- c("600117.SS","002225.SZ")
+exclude <- c("002235.SZ")
 
 
-init.p.value = 145226.18 - as.numeric(gl.value) - as.numeric(mt.value)#value for momentum investments
-tolerance <- 0.01 * (mt.value + gl.value + init.p.value) #acceptable maximum daily loss 
+#init.p.value = 145226.18 - as.numeric(gl.value) - as.numeric(mt.value)#value for momentum investments
+init.p.value = 80000 #80000 capital devoted to momentum strategy 
+tolerance <- 0.015 * 265805.00 #(mt.value + gl.value + init.p.value) #acceptable maximum daily loss 
 
 N = 5
 num_holding_stock <- 0
@@ -186,6 +187,7 @@ while (num_holding_stock < N & dim(port)[1] >= N | slack == TRUE) {
     risk.ret <- xts(coredata(risk.xts) %*% as.matrix(risk.weight, col = 1),
                     order.by = index(get(mt.symbol)))
     risk.VaR <- VaR(risk.ret, p = 0.95, method = "modified") * (p.value + mt.value + gl.value)
+    #risk.VaR <- VaR(risk.ret, p = 0.95, method = "modified") * (p.value)
     risk.downsize_ratio <- abs( as.numeric(tolerance / risk.VaR))
     if (risk.downsize_ratio < 1) {
       print(risk.downsize_ratio)
