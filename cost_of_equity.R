@@ -6,14 +6,14 @@ symbol <- "002110"
 market <- "SZ"
 symbol <- paste(symbol, market, sep = ".")
 
-getSymbols(symbol, from = '2007-01-01',
-           to = "2017-12-31")
+getSymbols(symbol, from = '2008-03-31',
+           to = "2018-03-31")
 
 ohld <- get(symbol)
 stock.m.ret <- ohld %>% monthlyReturn() 
 
-getSymbols("^SSEC", from = '2007-01-01',
-           to = "2017-12-31")
+getSymbols("^SSEC", from = '2007-01-01 fund.ticker <- head(x[,nasdaq],1)',
+           to = "2017-02-28")
 mkt <- get("SSEC")
 mkt.m.ret <- mkt %>% monthlyReturn()
 
@@ -27,9 +27,8 @@ reg.dt <- reg.dt[stock != 0] #ting pai
 
 fit <- lm(stock ~ mkt, data = reg.dt)
 summary(fit)
+beta <-  coef(fit)['mkt']
 
-m.pred <- predict(fit, newdata = data.frame(mkt = 1.1^(1/12) - 1) ) 
-(1 + m.pred)^12
-
-
-mean(stock.m.ret) 
+rf <- 4 / 100 #guokai hang bond rate
+equity.premium <- 6.85 / 100 #Adaradon 
+(cost.equity <- rf + beta * equity.premium)
