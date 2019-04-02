@@ -7,8 +7,8 @@ require(PerformanceAnalytics)
 require(magrittr)
 
 setwd("/Users/renco/GitHub/Renco_Quant_Trading")
-start_date <- today() - 30 
-end_date <- today() 
+(start_date <- today() - 30 - 1)
+(end_date <- today() - 1)
 
 
 # Should we trade? --------------------------------------------------------
@@ -28,7 +28,8 @@ if (sh.ret < 1) {
   print("Good to go")
 }
 print(tail(index(get("000001.SS")),1))
-print(sh.ret)
+cat("The cumulative return of market in the past 30 days is (in %)\n")
+print(100*(sh.ret - 1))
 
 
 # Momentum Strat ----------------------------------------------------------
@@ -99,28 +100,35 @@ getSymbols(mt.symbol, from = today() - 126,
 mt.price <- tail(Ad(get(mt.symbol)),1)
 mt.value <- mt.price * mt.holding
 
-
-#ge li
-#long-term holding
-gl.symbol <- "000651.SZ"
-gl.holding <- 400
-getSymbols(gl.symbol, from = today() - 126,
-           to = today())
-gl.price <- tail(Ad(get(gl.symbol)),1)
-gl.value <- gl.price * gl.holding
+# 
+# #ge li
+# #long-term holding
+# gl.symbol <- "000651.SZ"
+# gl.holding <- 400
+# getSymbols(gl.symbol, from = today() - 126,
+#            to = today())
+# gl.price <- tail(Ad(get(gl.symbol)),1)
+# gl.value <- gl.price * gl.holding
 
 
 #stocks that failed discretionary tests
-exclude <- c("002235.SZ")
+exclude <- c("600117.SS","002225.SZ")
 
 
 #init.p.value = 145226.18 - as.numeric(gl.value) - as.numeric(mt.value)#value for momentum investments
-init.p.value = 80000 #80000 capital devoted to momentum strategy 
-tolerance <- 0.015 * 265805.00 #(mt.value + gl.value + init.p.value) #acceptable maximum daily loss 
+init.p.value = 100000  
+#tolerance <- 0.01 * (mt.value + gl.value + init.p.value) #acceptable maximum daily loss 
+tolerance <- 0.05 * (init.p.value)#acceptable maximum daily loss 
 
-N = 5
-num_holding_stock <- 0
-slack = TRUE #addtional risk capital to use 
+
+#The following code does this:
+#it seeks to find 5 stocks that meet my criteria
+#it starts from the first 5 except stocks that I manually excluded
+#if it fails to get 5 stocks, it goes further down to the list 
+
+N = 5 #number of stocks in the desired momentum portfolio 
+num_holding_stock <- 0 #stocks in the final holding
+slack = TRUE #addtional risk capital to use, see the code below 
 while (num_holding_stock < N & dim(port)[1] >= N | slack == TRUE) {
   
   num_mom_stock <- 0
@@ -134,13 +142,13 @@ while (num_holding_stock < N & dim(port)[1] >= N | slack == TRUE) {
     names(holding) <- c("symbol", "weight","vol","cum.ret")
     holding["symbol"] <- port[1:N,symbol]
     
-    del_row = c()
+    del_row = c() #rows to exclude from holding 
     for (i in 1:N) {
       symbol <- holding[i,"symbol"]
       getSymbols(symbol, from = today() - 126, to = today())
       ts <- dailyReturn(Ad(get(symbol)))
       ts <- ts[!is.na(ts)] #remove NA values
-      holding[i,"weight"] <- mean(ts) / var(ts)
+      holding[i,"weight"] <- mean(ts) / var(ts) #scaling by sharpe ratio
       if (holding[i,'weight'] < 0 ) {
         exclude <- c(exclude, symbol)
         print(paste(symbol, "has negative return -- Kill it"))
@@ -162,7 +170,7 @@ while (num_holding_stock < N & dim(port)[1] >= N | slack == TRUE) {
   
   #risk managment
   #trim addtional holding to make sure the daily VaR is less than
-  # 1% of total asset value 
+  # 5% of total asset value 
   
   p.value = init.p.value
   risk.VaR <- Inf
@@ -170,24 +178,33 @@ while (num_holding_stock < N & dim(port)[1] >= N | slack == TRUE) {
   while (abs(risk.VaR) > tolerance) {
     
     #downsize portfolio until the daily VaR is less than 
-    #1% ot total asset value
+    #5% ot total asset value
     p.value <- p.value * risk.downsize_ratio 
-    risk.xts <- dailyReturn(Ad(get(mt.symbol)))
-    risk.xts <- merge(risk.xts, dailyReturn(Ad(get(gl.symbol))))  
+    #the following two lines are no longer needed coz I only work with
+    #momentum portfolio
+    #risk.xts <- dailyReturn(Ad(get(mt.symbol)))
+    #risk.xts <- merge(risk.xts, dailyReturn(Ad(get(gl.symbol))))  
     for (symbol in unlist(holding['symbol'])) {
-      risk.xts <- merge(risk.xts, dailyReturn(Ad(get(symbol))))  
+      if(symbol == unlist(holding['symbol'])[1]){
+        risk.xts <- dailyReturn(Ad(get(symbol)))
+      }else
+        risk.xts <- merge(risk.xts, dailyReturn(Ad(get(symbol))))  
     }
-    names(risk.xts) <- c(mt.symbol, gl.symbol, unlist(holding['symbol']))
-    mt.weight <- as.numeric(coredata(mt.value /  (mt.value + gl.value + p.value)))
-    gl.weight <- as.numeric(coredata(gl.value /  (mt.value + gl.value + p.value)))
-    value.weight <- mt.weight + gl.weight
-    risk.weight <- c(mt.weight, gl.weight, unlist(holding["weight"]) * (1 - value.weight) * 1/100)
+    #names(risk.xts) <- c(mt.symbol, gl.symbol, unlist(holding['symbol']))
+    names(risk.xts) <- c(unlist(holding['symbol']))
+    #mt.weight <- as.numeric(coredata(mt.value /  (mt.value + gl.value + p.value)))
+    #gl.weight <- as.numeric(coredata(gl.value /  (mt.value + gl.value + p.value)))
+    #value.weight <- mt.weight + gl.weight
+    #risk.weight <- c(mt.weight, gl.weight, unlist(holding["weight"]) * (1 - value.weight) * 1/100)
+    risk.weight <- c(unlist(holding["weight"])  * 1/100) #convert to decimal 
     stopifnot(abs(sum(risk.weight) - 1) < 1e-6)
     
+    #return of the mom portfolio in the last 6 months
     risk.ret <- xts(coredata(risk.xts) %*% as.matrix(risk.weight, col = 1),
                     order.by = index(get(mt.symbol)))
-    risk.VaR <- VaR(risk.ret, p = 0.95, method = "modified") * (p.value + mt.value + gl.value)
-    #risk.VaR <- VaR(risk.ret, p = 0.95, method = "modified") * (p.value)
+    #risk.VaR <- VaR(risk.ret, p = 0.95, method = "modified") * (p.value + mt.value + gl.value)
+    risk.VaR <- VaR(risk.ret, p = 0.95, method = "modified") * (p.value)
+    #VaR of the mom port in the past 6 months 
     risk.downsize_ratio <- abs( as.numeric(tolerance / risk.VaR))
     if (risk.downsize_ratio < 1) {
       print(risk.downsize_ratio)
@@ -210,7 +227,7 @@ while (num_holding_stock < N & dim(port)[1] >= N | slack == TRUE) {
   
   
   
-  last.price = c() #used to calculate "shou"
+  last.price = c() #used to calculate "shou"(unit)
   for (symbol in unlist(holding['symbol']) ) {
     last.price = c(last.price, tail(Ad(get(symbol)), 1))
   }
@@ -221,11 +238,15 @@ while (num_holding_stock < N & dim(port)[1] >= N | slack == TRUE) {
                           digits = 0)
   
   
-  exclude <- c(exclude, unlist(unlist(holding[holding["shou"] == 0,"symbol"])))  
+  exclude <- c(exclude, unlist(unlist(holding[holding["shou"] == 0,"symbol"]))) 
+  #exclude stocks if shou is less than 1 
   holding <- holding[holding["shou"] != 0,] #triming asset that has zero shou
   
   holding["value"] = last.price * holding["shou"] * 100
   if (sum(holding["value"]) / p.value < 0.95) {
+    #if the resulting portfolio does not use 95% of cash
+    #we can create a little slack and give a higher tolerance for loss
+    #then we start again 
     slack = TRUE
     tolerance = tolerance * (p.value / sum(holding["value"]))
     print(sum(holding["value"]) / p.value )
@@ -238,10 +259,10 @@ while (num_holding_stock < N & dim(port)[1] >= N | slack == TRUE) {
   
 }#while num_holding_stock
 
-print(holding)
+print(holding) #this gives the final portfolio 
 chart.CumReturns(risk.ret)
-print(paste("total momentum value: ", sum(holding['value'])))
-print(paste("Daily VaR value: ", risk.VaR))
+print(paste("total momentum value: ", round(sum(holding['value']))))
+print(paste("Daily VaR value: ", round(risk.VaR)))
 
 #clean up
 removeSymbols(mt.symbol)
