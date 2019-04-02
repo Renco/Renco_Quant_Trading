@@ -88,9 +88,11 @@ cat("Top 20 Winners:\n\n")
 print(head(mom.dt,20))
 port <- head(mom.dt, 20)
 
+save(port, file = "today_port.RData")
 
 # optimal portfolio  ------------------------------------------------------
 
+#load("today_port.RData")
 #mao tai 
 #this is the long-term holding invariant to daily rebalancing
 mt.symbol <- "600519.SS"
@@ -112,7 +114,7 @@ mt.value <- mt.price * mt.holding
 
 
 #stocks that failed discretionary tests
-exclude <- c("600117.SS","002225.SZ")
+exclude <- c()#c("600278.SS","000610.SZ")
 
 
 #init.p.value = 145226.18 - as.numeric(gl.value) - as.numeric(mt.value)#value for momentum investments
@@ -126,7 +128,7 @@ tolerance <- 0.05 * (init.p.value)#acceptable maximum daily loss
 #it starts from the first 5 except stocks that I manually excluded
 #if it fails to get 5 stocks, it goes further down to the list 
 
-N = 5 #number of stocks in the desired momentum portfolio 
+N = 3 #number of stocks in the desired momentum portfolio 
 num_holding_stock <- 0 #stocks in the final holding
 slack = TRUE #addtional risk capital to use, see the code below 
 while (num_holding_stock < N & dim(port)[1] >= N | slack == TRUE) {
@@ -263,6 +265,9 @@ print(holding) #this gives the final portfolio
 chart.CumReturns(risk.ret)
 print(paste("total momentum value: ", round(sum(holding['value']))))
 print(paste("Daily VaR value: ", round(risk.VaR)))
+
+
+
 
 #clean up
 removeSymbols(mt.symbol)
