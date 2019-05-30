@@ -114,7 +114,8 @@ mt.value <- mt.price * mt.holding
 
 
 #stocks that failed discretionary tests
-exclude <- c()#c("600278.SS","000610.SZ")
+exclude <- c("002177.SZ","002496.SZ",
+             "002748.SZ")#c("600278.SS","000610.SZ")
 
 
 #init.p.value = 145226.18 - as.numeric(gl.value) - as.numeric(mt.value)#value for momentum investments
@@ -270,9 +271,9 @@ print(paste("Daily VaR value: ", round(risk.VaR)))
 
 
 #clean up
-removeSymbols(mt.symbol)
-removeSymbols(gl.symbol)
-sapply(unlist(holding['symbol']), removeSymbols) %>% invisible()
-
+# removeSymbols(mt.symbol)
+# removeSymbols(gl.symbol)
+# sapply(unlist(holding['symbol']), removeSymbols) %>% invisible()
+# 
 
 
